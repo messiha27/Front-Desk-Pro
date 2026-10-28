@@ -281,8 +281,81 @@ async function openLesson(i) {
 }
 function toggleOnboard(i,on){let a=JSON.parse(localStorage.getItem('fdp_onboard')||'[]');a=on?[...new Set([...a,i])]:a.filter(x=>x!==i);localStorage.setItem('fdp_onboard',JSON.stringify(a));renderApp('onboarding')}
 function addMaterial(e){e.preventDefault();const f=new FormData(e.target);let a=JSON.parse(localStorage.getItem('fdp_materials')||'[]');a.push({title:f.get('title'),type:f.get('type'),body:f.get('body')});localStorage.setItem('fdp_materials',JSON.stringify(a));renderApp('materials');showToast('Demo material saved in this browser.')}
-function saveSettings(e){e.preventDefault();localStorage.setItem('fdp_practice',e.target.practiceName.value);showToast('Demo settings saved locally.')}
-function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function saveSettings(e) {
+  e.preventDefault();
+
+  const client = window.frontDeskProSupabase;
+
+  if (!client) {
+    showToast("Supabase is not connected.");
+    return;
+  }
+
+  const practiceName =
+    e.target.elements.practiceName.value.trim();
+
+  const focus = e.target.elements.focus.value;
+
+  if (!practiceName) {
+    showToast("Please enter a practice name.");
+    return;
+  }
+
+  try {
+    showToast("Saving practice settings...");
+
+    const { data: userData, error: userError } =
+      await client.auth.getUser();
+
+    if (userError) throw userError;
+
+    if (!userData.user) {
+      showToast("Please sign in first.");
+      return;
+    }
+
+    const { data: memberships, error: memberError } =
+      await client
+        .from("memberships")
+        .select("organization_id, role")
+        .eq("user_id", userData.user.id);
+
+    if (memberError) throw memberError;
+
+    if (!memberships || memberships.length !== 1) {
+      showToast("Your practice membership could not be identified.");
+      return;
+    }
+
+    if (memberships[0].role !== "owner") {
+      showToast("Only a practice owner can change the practice name.");
+      return;
+    }
+
+    const { error: updateError } = await client
+      .from("organizations")
+      .update({
+        name: practiceName,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", memberships[0].organization_id);
+
+    if (updateError) throw updateError;
+
+    localStorage.setItem("fdp_practice", practiceName);
+    localStorage.setItem("fdp_focus", focus);
+
+    showToast("Practice name saved to Supabase!");
+
+    await renderApp("settings");
+
+  } catch (error) {
+    console.error("Workspace settings save failed:", error);
+    showToast("Could not save settings: " + error.message);
+  }
+}
+
+  function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function downloadSampleReport(){let rows=[['Team member','Modules complete','Progress','Status'],['Jordan Lee','5/6','83%','On track'],['Taylor Morgan','4/6','67%','In progress'],['Alex Rivera','2/6','33%','Needs coaching']];let csv=rows.map(r=>r.join(',')).join('\n');let blob=new Blob([csv],{type:'text/csv'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='front-desk-pro-sample-report.csv';a.click();URL.revokeObjectURL(url);showToast('Sample report downloaded. This is fictional demo data.')}
 </script>
 </body>
