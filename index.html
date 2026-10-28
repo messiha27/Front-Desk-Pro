@@ -210,8 +210,25 @@ async function completeCourse(i) {
   }
 }
 
-function appTab(tab,el){currentAppTab=tab;document.querySelectorAll('.side button[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));renderApp(tab)}
-function renderApp(tab){const c=document.getElementById('appContent');if(!c)return;const done=getDone();const pct=Math.round(done.length/courseData.length*100);
+
+function appTab(tab,el){
+  currentAppTab=tab;
+  document.querySelectorAll('.side button[data-tab]').forEach(b=>
+    b.classList.toggle('active',b.dataset.tab===tab)
+  );
+  renderApp(tab);
+}
+
+
+async function renderApp(tab){
+
+const c = document.getElementById('appContent');
+if (!c) return;
+
+c.innerHTML = '<div class="panel">Loading your saved training progress...</div>';
+
+const done = await loadDoneFromSupabase();
+const pct = Math.round(done.length / courseData.length * 100);
 if(tab==='overview'){c.innerHTML=`<div class="appcards"><div class="metric"><span>Core modules completed</span><strong>${done.length} / 6</strong></div><div class="metric"><span>Learning progress</span><strong>${pct}%</strong></div><div class="metric"><span>Onboarding plan</span><strong>30 days</strong></div></div><div class="panel"><h3>Your learning path</h3><p class="muted">Build confidence one core skill at a time. Select a module to begin or continue training.</p><div class="progressbar"><span style="width:${pct}%"></span></div><div class="course-list">${courseData.slice(0,3).map((x,i)=>courseRow(x,i,done)).join('')}</div><button class="btn btn-primary btn-sm" style="margin-top:14px" onclick="appTab('courses')">View all modules →</button></div><div class="panel"><h3>Manager note</h3><p class="muted">A production version will connect this workspace to secure employee accounts, shared progress records, manager permissions, and subscription entitlements.</p></div>`}
 if(tab==='courses'){c.innerHTML=`<div class="panel" style="margin-top:0"><h3>Core training modules</h3><p class="muted">Select a module to review its learning steps. Your demo completion status stays in this browser.</p><div class="course-list">${courseData.map((x,i)=>courseRow(x,i,done)).join('')}</div></div>`}
 if(tab==='onboarding'){let tasks=['Meet the team, review office tour, and learn escalation contacts.','Observe phone calls and practice the approved call flow.','Review scheduling rules, appointment types, and confirmation process.','Learn benefit verification and how to explain estimates accurately.','Practice treatment follow-up, checkout, and payment workflows.','Complete privacy, documentation, and end-of-day routines.','Complete knowledge checks and manager review.'];let checks=JSON.parse(localStorage.getItem('fdp_onboard')||'[]');c.innerHTML=`<div class="panel" style="margin-top:0"><h3>30-day onboarding roadmap</h3><p class="muted">A sample checklist for manager-guided onboarding. Customize the timing to your practice.</p><div class="progressbar"><span style="width:${checks.length/tasks.length*100}%"></span></div><p class="muted">${checks.length} of ${tasks.length} milestones complete</p>${tasks.map((t,i)=>`<label class="check" style="padding:11px 0;border-bottom:1px solid var(--line)"><input type="checkbox" ${checks.includes(i)?'checked':''} onchange="toggleOnboard(${i},this.checked)"><span>${t}</span></label>`).join('')}</div>`}
