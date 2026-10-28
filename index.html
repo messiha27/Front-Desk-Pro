@@ -237,7 +237,28 @@ if(tab==='materials'){let mats=JSON.parse(localStorage.getItem('fdp_materials')|
 if(tab==='settings'){c.innerHTML=`<div class="panel" style="margin-top:0"><h3>Workspace settings</h3><p class="muted">Sample practice settings for the preview.</p><form class="form" style="margin-top:16px" onsubmit="saveSettings(event)"><div class="field"><label>Practice name</label><input name="practiceName" id="practiceName" value="${escapeHtml(localStorage.getItem('fdp_practice')||'Sample Dental Practice')}"></div><div class="field"><label>Training focus</label><select name="focus"><option>High-volume front desk</option><option>New-patient conversion</option><option>Insurance and treatment coordination</option><option>New-hire onboarding</option></select></div><button class="btn btn-primary">Save demo settings</button></form><p class="muted">Settings are saved locally in this browser only. No account, database, or cloud sync is active.</p></div>`}
 }
 function courseRow(x,i,done){return `<div class="course"><div class="courseicon">${x[2]}</div><div class="courseinfo"><strong>${x[0]}</strong><span>${x[1]}</span></div><button onclick="openLesson(${i})">${done.includes(i)?'Review lesson':'Start lesson'} →</button></div>`}
-function openLesson(i){activeCourse=i;const x=courseData[i],done=getDone();openModal(x[0],'Module '+String(i+1).padStart(2,'0')+' · Training preview',`<p class="muted">${x[1]}</p><ol style="padding-left:20px;line-height:1.8;font-size:13px">${lessonSteps[i].map(s=>'<li style="margin:8px 0">'+s+'</li>').join('')}</ol><div class="notice">Training content is educational. Follow practice policies and escalate clinical questions to the appropriate clinician.</div><button class="btn btn-primary" style="width:100%;margin-top:15px" onclick="closeModal();completeCourse(${i})">${done.includes(i)?'Mark reviewed again':'Mark lesson complete'}</button>`)}
+
+async function openLesson(i) {
+  activeCourse = i;
+  const done = await loadDoneFromSupabase();
+  const x = courseData[i];
+
+  openModal(
+    x[0],
+    'Module ' + String(i + 1).padStart(2, '0') + ' · Training preview',
+    `<p class="muted">${x[1]}</p>
+    <ol style="padding-left:20px;line-height:1.8;font-size:13px">
+      ${lessonSteps[i].map(s => '<li style="margin:8px 0">' + s + '</li>').join('')}
+    </ol>
+    <div class="notice">
+      Training content is educational. Follow practice policies and escalate clinical questions to the appropriate clinician.
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:15px"
+      onclick="closeModal();completeCourse(${i})">
+      ${done.includes(i) ? 'Mark reviewed again' : 'Mark lesson complete'}
+    </button>`
+  );
+}
 function toggleOnboard(i,on){let a=JSON.parse(localStorage.getItem('fdp_onboard')||'[]');a=on?[...new Set([...a,i])]:a.filter(x=>x!==i);localStorage.setItem('fdp_onboard',JSON.stringify(a));renderApp('onboarding')}
 function addMaterial(e){e.preventDefault();const f=new FormData(e.target);let a=JSON.parse(localStorage.getItem('fdp_materials')||'[]');a.push({title:f.get('title'),type:f.get('type'),body:f.get('body')});localStorage.setItem('fdp_materials',JSON.stringify(a));renderApp('materials');showToast('Demo material saved in this browser.')}
 function saveSettings(e){e.preventDefault();localStorage.setItem('fdp_practice',e.target.practiceName.value);showToast('Demo settings saved locally.')}
