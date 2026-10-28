@@ -102,12 +102,12 @@
   }
 
   async function updateScreen() {
-    const { data, error } = await client.auth.getUser();
+    const { data, error } = await client.auth.getSession();
     if (error) {
       showMessage("Could not check your session. Please refresh and try again.");
       return;
     }
-    const user = data.user;
+    const user = data.session?.user ?? null;
     account.hidden = !!user;
     workspace.hidden = !user;
     document.getElementById("signed-in").textContent =
