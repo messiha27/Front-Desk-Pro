@@ -286,6 +286,41 @@ if (tab === "settings") {
     </div>`;
 }
 }
+  async function getPracticeName() {
+  const client = window.frontDeskProSupabase;
+
+  if (!client) return "Practice workspace";
+
+  const { data: userData, error: userError } =
+    await client.auth.getUser();
+
+  if (userError || !userData.user) {
+    return "Practice workspace";
+  }
+
+  const { data: memberships, error: memberError } =
+    await client
+      .from("memberships")
+      .select("organization_id")
+      .eq("user_id", userData.user.id);
+
+  if (memberError || !memberships || memberships.length !== 1) {
+    return "Practice workspace";
+  }
+
+  const { data: organization, error: orgError } =
+    await client
+      .from("organizations")
+      .select("name")
+      .eq("id", memberships[0].organization_id)
+      .single();
+
+  if (orgError || !organization) {
+    return "Practice workspace";
+  }
+
+  return organization.name || "Practice workspace";
+}
 function courseRow(x,i,done){return `<div class="course"><div class="courseicon">${x[2]}</div><div class="courseinfo"><strong>${x[0]}</strong><span>${x[1]}</span></div><button onclick="openLesson(${i})">${done.includes(i)?'Review lesson':'Start lesson'} →</button></div>`}
 
 async function openLesson(i) {
