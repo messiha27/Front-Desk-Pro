@@ -86,7 +86,85 @@ function openInterest(kind){openModal('Join the Front Desk Pro pilot','Tell us h
 function saveInterest(e,kind){e.preventDefault();const f=new FormData(e.target);const item={kind,name:f.get('name'),email:f.get('email'),practice:f.get('practice'),role:f.get('role'),needs:f.get('needs'),date:new Date().toISOString()};let arr=[];try{arr=JSON.parse(localStorage.getItem('fdp_interest')||'[]')}catch{}arr.push(item);localStorage.setItem('fdp_interest',JSON.stringify(arr));closeModal();showToast('Demo request saved in this browser. No email was sent.')}
 function getDone(){try{return JSON.parse(localStorage.getItem('fdp_done')||'[]')}catch{return []}}
 function setDone(a){localStorage.setItem('fdp_done',JSON.stringify(a))}
-function completeCourse(i){let d=getDone();if(!d.includes(i))d.push(i);setDone(d);showToast('Lesson marked complete in this browser demo.');renderApp(currentAppTab)}
+
+async function completeCourse(i) {
+  const client = window.frontDeskProSupabase;
+
+  if (!client) {
+    showToast("Supabase is not connected.");
+    return;
+  }
+
+  try {
+    showToast("Saving lesson progress...");
+
+    const { data: userData, error: userError } =
+      await client.auth.getUser();
+
+    if (userError) throw userError;
+
+    const user = userData.user;
+
+    if (!user) {
+      showToast("Please sign in before completing a lesson.");
+      return;
+    }
+
+    const { data: memberships, error: memberError } =
+      await client
+        .from("memberships")
+        .select("organization_id")
+        .eq("user_id", user.id);
+
+    if (memberError) throw memberError;
+
+    if (!memberships || memberships.length !== 1) {
+      showToast(
+        memberships?.length > 1
+          ? "Select your practice workspace before continuing."
+          : "No practice workspace found. Sign in and check your membership."
+      );
+      return;
+    }
+
+    const now = new Date().toISOString();
+
+    const lessonKey = courseData[i][0]
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+    const { error: saveError } = await client
+      .from("lesson_progress")
+      .upsert({
+        organization_id: memberships[0].organization_id,
+        user_id: user.id,
+        lesson_key: lessonKey,
+        state: "completed",
+        completed_at: now,
+        updated_at: now
+      }, {
+        onConflict: "organization_id,user_id,lesson_key"
+      });
+
+    if (saveError) throw saveError;
+
+    const done = getDone();
+
+    if (!done.includes(i)) {
+      done.push(i);
+      setDone(done);
+    }
+
+    showToast("Lesson completion saved to Supabase!");
+    renderApp(currentAppTab);
+
+  } catch (error) {
+    console.error("Lesson progress save failed:", error);
+    showToast("Could not save progress: " + error.message);
+  }
+}
+
 function appTab(tab,el){currentAppTab=tab;document.querySelectorAll('.side button[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));renderApp(tab)}
 function renderApp(tab){const c=document.getElementById('appContent');if(!c)return;const done=getDone();const pct=Math.round(done.length/courseData.length*100);
 if(tab==='overview'){c.innerHTML=`<div class="appcards"><div class="metric"><span>Core modules completed</span><strong>${done.length} / 6</strong></div><div class="metric"><span>Learning progress</span><strong>${pct}%</strong></div><div class="metric"><span>Onboarding plan</span><strong>30 days</strong></div></div><div class="panel"><h3>Your learning path</h3><p class="muted">Build confidence one core skill at a time. Select a module to begin or continue training.</p><div class="progressbar"><span style="width:${pct}%"></span></div><div class="course-list">${courseData.slice(0,3).map((x,i)=>courseRow(x,i,done)).join('')}</div><button class="btn btn-primary btn-sm" style="margin-top:14px" onclick="appTab('courses')">View all modules →</button></div><div class="panel"><h3>Manager note</h3><p class="muted">A production version will connect this workspace to secure employee accounts, shared progress records, manager permissions, and subscription entitlements.</p></div>`}
