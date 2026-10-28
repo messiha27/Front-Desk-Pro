@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html>⁰
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -75,11 +75,13 @@ const lessonSteps=[
 let activeCourse=0, currentAppTab="overview", billing="monthly";
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>t.classList.remove('show'),3200)}
 function showView(v){document.getElementById('homeView').classList.toggle('active',v==='home');document.getElementById('appView').classList.toggle('active',v==='app');document.getElementById('nav').classList.remove('open');window.scrollTo({top:0,behavior:'smooth'});if(v==='app')renderApp(currentAppTab)}
-function openDemo(){showView('app')}
+function openAuth(mode) {
+  window.location.href = './auth.html';
+}
+  function openDemo(){showView('app')}
 function setBilling(v){billing=v;document.getElementById('monthlyBtn').classList.toggle('active',v==='monthly');document.getElementById('annualBtn').classList.toggle('active',v==='annual');showToast(v==='annual'?'Annual billing selected. Pricing will be announced after pilot feedback.':'Monthly billing selected. Pricing will be announced after pilot feedback.')}
 function openModal(title,sub,body){document.getElementById('modalTitle').textContent=title;document.getElementById('modalSub').textContent=sub;document.getElementById('modalBody').innerHTML=body;document.getElementById('modalBack').classList.add('show')}
-function closeModal(){document.getElementById('modalBack').classList.remove('show')}
-function openAuth(mode){if(mode==='signup'){openInterest('Practice signup');return}openModal('Sign in to Front Desk Pro','Authentication is not connected in this preview.',`<div class="notice">This is a website preview. Live employee accounts, password recovery, and secure practice workspaces are not enabled yet.</div><form class="form" style="margin-top:16px" onsubmit="event.preventDefault();showToast('Demo mode: live sign-in is not connected yet.');"><div class="field"><label>Email address</label><input type="email" required placeholder="you@yourpractice.com"></div><div class="field"><label>Password</label><input type="password" required placeholder="Enter your password"></div><button class="btn btn-primary">Sign in</button><button type="button" class="btn btn-light" onclick="closeModal();openDemo()">Explore demo workspace instead</button></form>`)}
+function closeModal(){document.getElementById('modalBack').classList.remove('show')} 
 function openInterest(kind){openModal('Join the Front Desk Pro pilot','Tell us how to reach you when pilot enrollment opens.',`<form class="form" id="interestForm" onsubmit="saveInterest(event,'${kind}')"><div class="field"><label>Your name</label><input name="name" required placeholder="Full name"></div><div class="field"><label>Work email</label><input name="email" type="email" required placeholder="you@yourpractice.com"></div><div class="field"><label>Practice name</label><input name="practice" required placeholder="Dental practice"></div><div class="field"><label>Your role</label><select name="role"><option>Practice owner</option><option>Office manager</option><option>Front desk team lead</option><option>Other</option></select></div><div class="field"><label>What would help your team most? (optional)</label><textarea name="needs" placeholder="Training, onboarding, manager reports..."></textarea></div><div class="notice">Preview only: this form stores a request in this browser for demonstration. It does not send email or submit to a live service.</div><button class="btn btn-primary" type="submit">Save pilot interest</button></form>`)}
 function saveInterest(e,kind){e.preventDefault();const f=new FormData(e.target);const item={kind,name:f.get('name'),email:f.get('email'),practice:f.get('practice'),role:f.get('role'),needs:f.get('needs'),date:new Date().toISOString()};let arr=[];try{arr=JSON.parse(localStorage.getItem('fdp_interest')||'[]')}catch{}arr.push(item);localStorage.setItem('fdp_interest',JSON.stringify(arr));closeModal();showToast('Demo request saved in this browser. No email was sent.')}
 function getDone(){try{return JSON.parse(localStorage.getItem('fdp_done')||'[]')}catch{return []}}
