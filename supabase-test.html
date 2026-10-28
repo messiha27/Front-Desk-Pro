@@ -19,11 +19,29 @@
       const status = document.getElementById("status");
       const client = window.frontDeskProSupabase;
 
-      if (!client) {
-        status.textContent =
-          "FAILED: Client not initialized. Check configuration and script files.";
-        return;
-      }
+      
+if (!window.supabase) {
+  status.textContent = "FAILED: Supabase library did not load.";
+  return;
+}
+
+const config = window.SUPABASE_CONFIG;
+
+if (!config) {
+  status.textContent = "FAILED: Configuration file did not load.";
+  return;
+}
+
+if (!config.url || !config.publishableKey) {
+  status.textContent = "FAILED: URL or publishable key is missing.";
+  return;
+}
+
+if (!client) {
+  status.textContent = "FAILED: Client initialization failed.";
+  return;
+}
+
 
       try {
         const { error } = await client.auth.getSession();
