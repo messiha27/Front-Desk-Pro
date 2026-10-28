@@ -120,24 +120,46 @@
     }
   }
 
-  async function listPractices() {
+  
+async function listPractices() {
+  const refreshButton = document.getElementById("refresh");
+  const createForm = document.getElementById("create-practice");
+
+  refreshButton.disabled = true;
+  refreshButton.textContent = "Checking practices...";
+  showMessage("Checking your practice memberships...");
+
+  try {
     const { data, error } = await client
       .from("memberships")
-      .select("organization_id, role, organizations(name)")
-      .order("created_at", { ascending: true });
+      .select("organization_id, role, organizations(name)");
 
     if (error) {
-      showMessage("Signed in. Practice list unavailable; check database permissions.");
+      showMessage("Practice lookup failed: " + error.message);
       return;
     }
-    if (data.length) {
-      showMessage("You're signed in. Your practice membership(s): " +
-        data.map(m => (m.organizations && m.organizations.name || "Practice") +
-          " (" + m.role + ")").join(", "));
+
+    if (data && data.length > 0) {
+      createForm.hidden = true;
+
+      const names = data.map(m =>
+        (m.organizations?.name || "Practice") +
+        " (" + m.role + ")"
+      );
+
+      showMessage("Your practice membership(s): " + names.join(", "));
     } else {
-      showMessage("You're signed in. Create your practice workspace below.");
+      createForm.hidden = false;
+      showMessage("No practice memberships found. You can create a workspace below.");
     }
+  } catch (err) {
+    showMessage("Could not check practices. Please try again.");
+  } finally {
+    refreshButton.disabled = false;
+    refreshButton.textContent = "Check my practices";
   }
+}
+
 
   document.getElementById("signup").addEventListener("submit", async function (e) {
     e.preventDefault();
