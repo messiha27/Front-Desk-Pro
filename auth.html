@@ -1,0 +1,226 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Front Desk Pro | Account Access</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 24px;
+      font-family: Arial, sans-serif;
+      background: #f4f7fa; color: #193047;
+    }
+    main {
+      max-width: 460px; margin: 35px auto;
+      padding: 28px; background: white;
+      border-radius: 18px;
+      box-shadow: 0 8px 30px #18304712;
+    }
+    h1 { margin-bottom: 6px; }
+    p { line-height: 1.5; }
+    input, button {
+      width: 100%; padding: 13px;
+      margin: 7px 0; border-radius: 8px;
+      font-size: 16px;
+    }
+    input { border: 1px solid #ccd6df; }
+    button {
+      border: 0; background: #1d5968;
+      color: white; font-weight: bold;
+      cursor: pointer;
+    }
+    button.secondary { background: #e8eef2; color: #193047; }
+    #status { overflow-wrap: anywhere; }
+    .muted { color: #657786; font-size: 14px; }
+    section { border-top: 1px solid #e5ebef; margin-top: 24px; padding-top: 12px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Front Desk Pro</h1>
+  <p class="muted">Building confident teams. Growing stronger practices.</p>
+  <p id="status" role="status">Loading account access…</p>
+
+  <section id="account">
+    <h2>Create your account</h2>
+    <form id="signup">
+      <input id="signup-email" type="email" placeholder="Work email" autocomplete="email" required>
+      <input id="signup-password" type="password" placeholder="Password (at least 8 characters)" minlength="8" autocomplete="new-password" required>
+      <button type="submit">Create account</button>
+    </form>
+
+    <h2>Already registered?</h2>
+    <form id="login">
+      <input id="login-email" type="email" placeholder="Email address" autocomplete="email" required>
+      <input id="login-password" type="password" placeholder="Password" autocomplete="current-password" required>
+      <button type="submit">Sign in</button>
+    </form>
+    <button class="secondary" id="reset">Send password reset email</button>
+  </section>
+
+  <section id="workspace" hidden>
+    <h2>Your practice workspace</h2>
+    <p id="signed-in"></p>
+    <form id="create-practice">
+      <input id="practice-name" type="text" minlength="2" maxlength="120"
+        placeholder="Dental practice name" required>
+      <button type="submit">Create practice workspace</button>
+    </form>
+    <button class="secondary" id="refresh">Check my practices</button>
+    <button class="secondary" id="logout">Sign out</button>
+  </section>
+
+  <section>
+    <p class="muted">
+      Use a unique password. Never enter patient names, health details,
+      or other patient-identifying information into this training platform.
+    </p>
+    <a href="./index.html">Back to homepage</a>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="./supabase-config.js"></script>
+<script src="./supabase-client.js"></script>
+<script>
+(async function () {
+  const status = document.getElementById("status");
+  const account = document.getElementById("account");
+  const workspace = document.getElementById("workspace");
+  const client = window.frontDeskProSupabase;
+
+  if (!client) {
+    status.textContent = "Setup error: Supabase did not initialize. Please contact support.";
+    return;
+  }
+
+  function showMessage(message) {
+    status.textContent = message;
+  }
+
+  async function updateScreen() {
+    const { data, error } = await client.auth.getUser();
+    if (error) {
+      showMessage("Could not check your session. Please refresh and try again.");
+      return;
+    }
+    const user = data.user;
+    account.hidden = !!user;
+    workspace.hidden = !user;
+    document.getElementById("signed-in").textContent =
+      user ? "Signed in as " + user.email : "";
+    if (user) {
+      showMessage("You're signed in. Create your practice workspace below.");
+      await listPractices();
+    } else {
+      showMessage("Create an account or sign in to continue.");
+    }
+  }
+
+  async function listPractices() {
+    const { data, error } = await client
+      .from("memberships")
+      .select("organization_id, role, organizations(name)")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      showMessage("Signed in. Practice list unavailable; check database permissions.");
+      return;
+    }
+    if (data.length) {
+      showMessage("You're signed in. Your practice membership(s): " +
+        data.map(m => (m.organizations && m.organizations.name || "Practice") +
+          " (" + m.role + ")").join(", "));
+    } else {
+      showMessage("You're signed in. Create your practice workspace below.");
+    }
+  }
+
+  document.getElementById("signup").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    showMessage("Creating account…");
+    const email = document.getElementById("signup-email").value.trim();
+    const password = document.getElementById("signup-password").value;
+    const { data, error } = await client.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: location.origin + location.pathname
+      }
+    });
+    if (error) {
+      showMessage("Sign-up failed: " + error.message);
+      return;
+    }
+    if (data.session) {
+      showMessage("Account created successfully.");
+      await updateScreen();
+    } else {
+      showMessage("Check your email for the confirmation link. Confirm your email, then return here and sign in.");
+    }
+  });
+
+  document.getElementById("login").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    showMessage("Signing in…");
+    const email = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
+    const { error } = await client.auth.signInWithPassword({ email, password });
+    if (error) {
+      showMessage("Sign-in failed: " + error.message);
+      return;
+    }
+    await updateScreen();
+  });
+
+  document.getElementById("reset").addEventListener("click", async function () {
+    const email = document.getElementById("login-email").value.trim();
+    if (!email) {
+      showMessage("Enter your email in the sign-in form first.");
+      return;
+    }
+    const { error } = await client.auth.resetPasswordForEmail(email, {
+      redirectTo: location.origin + location.pathname
+    });
+    showMessage(error ? "Reset request failed: " + error.message :
+      "If that account exists, a password reset email will arrive shortly.");
+  });
+
+  document.getElementById("create-practice").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    const name = document.getElementById("practice-name").value.trim();
+    if (name.length < 2) {
+      showMessage("Enter a practice name with at least 2 characters.");
+      return;
+    }
+    showMessage("Creating practice workspace…");
+    const { error } = await client.rpc("create_practice", {
+      practice_name: name
+    });
+    if (error) {
+      showMessage("Workspace creation failed: " + error.message);
+      return;
+    }
+    document.getElementById("practice-name").value = "";
+    showMessage("Practice workspace created successfully.");
+    await listPractices();
+  });
+
+  document.getElementById("refresh").addEventListener("click", listPractices);
+  document.getElementById("logout").addEventListener("click", async function () {
+    const { error } = await client.auth.signOut();
+    if (error) {
+      showMessage("Sign-out failed: " + error.message);
+      return;
+    }
+    await updateScreen();
+  });
+
+  await updateScreen();
+})();
+</script>
+</body>
+</html>
